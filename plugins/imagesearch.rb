@@ -1,5 +1,7 @@
 # = Cinch Google Image Search plugin
-# Searches Google Images and returns the first result.
+# Searches Google Images and returns the first result. Results from Pinterest
+# are excluded by default, as these are commonly low resolution at best, and
+# incorrect at worst.
 #
 # == Configuration
 # Add the following to your bot's configure.do stanza:
@@ -64,17 +66,25 @@ class Cinch::ImageSearch
   end
 
   def search(query)
-    url = "#{@google_api_url}key=#{@google_api_key}&cx=#{@search_engine_id}&searchType=image&num=3&q=#{query}"
+    url = "#{@google_api_url}key=#{@google_api_key}&cx=#{@search_engine_id}&searchType=image&num=5&q=#{query}"
     uri = URI(URI.escape(url))
     response = Net::HTTP.get(uri)
     images = JSON.parse(response)
-    @result = images["items"][0]["link"]
+    strip_pinterest(images)
+  end
+
+  def strip_pinterest(url, url_index=0)
+    if url["items"][url_index]["link"].to_s.include?("pinimg")
+      url_index += 1
+      strip_pinterest(url, url_index)
+    else
+      url["items"][url_index]["link"]
+    end
   end
 
   match /gis (.+)/
   def execute(m, query)
-    gis = search(query)
-    m.reply "#{@result}"
+    m.reply search(query)
   end
-
+    
 end
